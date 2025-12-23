@@ -10,7 +10,7 @@ dotenv.config();
 
 const app = express();
 
-const allowedOrigins = ['http://localhost:3000', 'https://senin-domain.com'];
+const allowedOrigins = ['http://localhost:3000', 'https://inlyne-f.vercel.app/'];
 
 app.use(bodyParser.json()) // for parsing application/json
 app.use(bodyParser.urlencoded({ extended: false }));
