@@ -6,7 +6,6 @@ const TempUser = require('../models/TempUser');
 const { sendSignUpVerificationLink, sendResetPasswordLink } = require('../utils/sendMail');
 
 const router = express.Router();
-console.log('test');
 
 const isProduction = process.env.NODE_ENV === 'production';
 const tokenCookieOptions = {

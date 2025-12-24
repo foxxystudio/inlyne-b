@@ -10,7 +10,10 @@ dotenv.config();
 
 const app = express();
 
-const allowedOrigins = ['http://localhost:3000', 'https://inlyne-f.vercel.app/'];
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,https://inlyne-f.vercel.app')
+   .split(',')
+   .map(o => o.trim().replace(/\/$/, '')) // trim and drop trailing slash
+   .filter(Boolean);
 
 app.use(bodyParser.json()) // for parsing application/json
 app.use(bodyParser.urlencoded({ extended: false }));
