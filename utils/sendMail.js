@@ -1,5 +1,10 @@
 const nodemailer = require('nodemailer');
 
+const CLIENT_URL =
+   process.env.CLIENT_URL_PROD ||
+   process.env.CLIENT_URL ||
+   'http://localhost:3000';
+
 const sendMail = async ({ to, subject, html }) => {
    const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -30,7 +35,7 @@ const sendMail = async ({ to, subject, html }) => {
 
 // Send Verification Link for Sign Up
 const sendSignUpVerificationLink = async (email, token) => {
-   const verificationLink = `${CLIENT_URL_PROD}/auth/sign-up/create-password?token=${token}`;
+   const verificationLink = `${CLIENT_URL}/auth/sign-up/create-password?token=${token}`;
 
    await sendMail({
       to: email,
@@ -52,7 +57,7 @@ const sendSignUpVerificationLink = async (email, token) => {
 
 // Send Reset Password Link
 const sendResetPasswordLink = async (email, token) => {
-   const resetLink = `${process.env.CLIENT_URL_PROD}/auth/reset-password/create-password?token=${token}`;
+   const resetLink = `${CLIENT_URL}/auth/reset-password/create-password?token=${token}`;
 
    await sendMail({
       to: email,
