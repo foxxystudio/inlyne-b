@@ -19,29 +19,47 @@ const tokenCookieOptions = {
 
 // JWT auth middleware for protected routes
 const authenticateToken = async (req, res, next) => {
-   const token = req.cookies.token;
+   const token = req.cookies?.access_token;
 
+   // Token yoksa sessizce success:false dön (401 vermeden)
    if (!token) {
-      return res.status(401).json({ success: false, msg: 'No token found. Please login.' });
+      return res.status(200).json({ msg: 'No token found. Please login.', success: false, user: null });
    }
 
    try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.userId).select('-password -otpCode -otpExpires');
+      const user = await User.findById(decoded.userId).select('-password');
 
       if (!user) {
-         return res.status(401).json({ success: false, msg: 'User not found.' });
+         return res.status(200).json({ msg: 'User not found.', success: false, user: null });
       }
 
       req.user = user;
       next();
    } catch (err) {
       if (err.name === 'TokenExpiredError') {
-         return res.status(401).json({ success: false, msg: 'Token expired. Please login again.' });
+         return res.status(200).json({ msg: 'Token expired. Please login again.', success: false, user: null });
       }
-      return res.status(401).json({ success: false, msg: 'Invalid token.' });
+      return res.status(200).json({ msg: 'Invalid token.', success: false, user: null });
    }
 };
+
+// Get current user from JWT (requires cookie token)
+router.get('/me', authenticateToken, async (req, res) => {
+   res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+   });
+
+   res.status(200).json({
+      user: {
+         id: req.user._id,
+         email: req.user.email,
+         isVerified: req.user.isVerified
+      }
+   });
+});
 
 // Step 1: Sign Up - Email exist kontrolü ve verify email gönderme
 router.post('/signup', async (req, res) => {
@@ -79,7 +97,7 @@ router.post('/signup', async (req, res) => {
       // Send verification email
       await sendSignUpVerificationLink(email, token);
 
-      res.status(201).json({ 
+      res.status(201).json({
          msg: 'Verification link sent to your email.',
          success: true
       });
@@ -95,7 +113,7 @@ router.post('/signin', async (req, res) => {
 
    try {
       if (!email || !password) {
-         return res.status(400).json({ 
+         return res.status(400).json({
             success: false,
             msg: 'Email and password are required.',
             emailError: !email ? 'Email is required.' : undefined,
@@ -105,7 +123,7 @@ router.post('/signin', async (req, res) => {
 
       const user = await User.findOne({ email });
       if (!user) {
-         return res.status(401).json({ 
+         return res.status(401).json({
             success: false,
             msg: 'No account found for this email.',
             emailError: 'No account found for this email.'
@@ -114,7 +132,7 @@ router.post('/signin', async (req, res) => {
 
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
-         return res.status(401).json({ 
+         return res.status(401).json({
             success: false,
             msg: 'Incorrect password.',
             passwordError: 'Incorrect password.'
@@ -127,16 +145,11 @@ router.post('/signin', async (req, res) => {
          { expiresIn: '7d' }
       );
 
-      res.cookie('token', loginToken, tokenCookieOptions);
+      res.cookie('access_token', loginToken, tokenCookieOptions);
 
       res.status(200).json({
          success: true,
          msg: 'Logged in successfully.',
-         user: {
-            id: user._id,
-            email: user.email,
-            isVerified: user.isVerified,
-         }
       });
    } catch (err) {
       console.error('❌ Signin error:', err);
@@ -258,11 +271,6 @@ router.post('/reset-password/create-password', async (req, res) => {
       res.status(200).json({
          success: true,
          msg: 'Password updated successfully. Please sign in with your new password.',
-         user: {
-            id: user._id,
-            email: user.email,
-            isVerified: user.isVerified
-         }
       });
    } catch (err) {
       console.error('❌ Reset password create error:', err);
@@ -288,9 +296,9 @@ router.get('/verify-email', async (req, res) => {
       }
 
       // Find temp user
-      const tempUser = await TempUser.findOne({ 
-         email: decoded.email, 
-         verificationToken: token 
+      const tempUser = await TempUser.findOne({
+         email: decoded.email,
+         verificationToken: token
       });
 
       if (!tempUser) {
@@ -301,7 +309,7 @@ router.get('/verify-email', async (req, res) => {
       tempUser.isEmailVerified = true;
       await tempUser.save();
 
-      res.status(200).json({ 
+      res.status(200).json({
          msg: 'Email verified successfully.',
          success: true,
          email: decoded.email,
@@ -336,8 +344,8 @@ router.post('/create-password', async (req, res) => {
       }
 
       // Find temp user and check if email is verified
-      const tempUser = await TempUser.findOne({ 
-         email: decoded.email, 
+      const tempUser = await TempUser.findOne({
+         email: decoded.email,
          verificationToken: token,
          isEmailVerified: true
       });
@@ -369,22 +377,17 @@ router.post('/create-password', async (req, res) => {
 
       // Create JWT for login
       const loginToken = jwt.sign(
-         { userId: newUser._id, email: newUser.email }, 
-         process.env.JWT_SECRET, 
+         { userId: newUser._id, email: newUser.email },
+         process.env.JWT_SECRET,
          { expiresIn: '7d' }
       );
 
       // Set auth cookie as HttpOnly so it cannot be read via document.cookie
-      res.cookie('token', loginToken, tokenCookieOptions);
+      res.cookie('access_token', loginToken, tokenCookieOptions);
 
-      res.status(201).json({ 
+      res.status(201).json({
          msg: 'Account created successfully.',
          success: true,
-         user: {
-            id: newUser._id,
-            email: newUser.email,
-            isVerified: newUser.isVerified
-         }
       });
    } catch (err) {
       console.error('❌ Create password error:', err);
@@ -392,17 +395,9 @@ router.post('/create-password', async (req, res) => {
    }
 });
 
-// Get current user from JWT (requires cookie token)
-router.get('/me', authenticateToken, async (req, res) => {
-   res.json({
-      success: true,
-      user: req.user
-   });
-});
-
 // Logout by clearing auth cookie
 router.post('/logout', (req, res) => {
-   res.clearCookie('token', { ...tokenCookieOptions });
+   res.clearCookie('access_token', { ...tokenCookieOptions });
    res.status(200).json({ msg: 'Logged out successfully.' });
 });
 
