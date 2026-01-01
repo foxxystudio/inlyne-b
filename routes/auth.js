@@ -30,7 +30,11 @@ const clearAuthCookie = (res) => {
 
 // JWT auth middleware for protected routes
 const authenticateToken = async (req, res, next) => {
-   const token = req.cookies?.access_token;
+   // Öncelik httpOnly cookie; yoksa Authorization: Bearer <token> fallback
+   const bearer = req.headers.authorization?.startsWith('Bearer ')
+      ? req.headers.authorization.slice(7)
+      : null;
+   const token = req.cookies?.access_token || bearer;
 
    // Token yoksa sessizce success:false dön (401 vermeden)
    if (!token) {
@@ -43,7 +47,6 @@ const authenticateToken = async (req, res, next) => {
       const user = await User.findById(decoded.userId).select('-password');
 
       if (!user) {
-         clearAuthCookie(res);
          return res.status(304).json({ msg: 'User not found.', success: false, user: null });
       }
 
