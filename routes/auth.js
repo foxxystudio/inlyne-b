@@ -19,10 +19,20 @@ const tokenCookieOptions = {
 
 // Clear auth cookie with both clearCookie and explicit expired set-cookie
 const clearAuthCookie = (res) => {
+   // Primary clear with configured domain
    res.clearCookie('access_token', { ...tokenCookieOptions });
-   // Explicit expire to cover clients that ignore clearCookie on 304, or domain mismatches
    res.cookie('access_token', '', {
       ...tokenCookieOptions,
+      maxAge: 0,
+      expires: new Date(0),
+   });
+
+   // Host-only fallback (no domain) to cover mismatch between COOKIE_DOMAIN and current host
+   const { domain, ...hostOnlyOpts } = tokenCookieOptions;
+   res.clearCookie('access_token', { ...hostOnlyOpts, domain: undefined });
+   res.cookie('access_token', '', {
+      ...hostOnlyOpts,
+      domain: undefined,
       maxAge: 0,
       expires: new Date(0),
    });
