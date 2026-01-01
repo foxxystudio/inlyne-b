@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { v4: uuidv4 } = require('uuid');
 const User = require('../models/User');
 const TempUser = require('../models/TempUser');
 const { sendSignUpVerificationLink, sendResetPasswordLink } = require('../utils/sendMail');
@@ -56,7 +57,8 @@ router.get('/me', authenticateToken, async (req, res) => {
       user: {
          id: req.user._id,
          email: req.user.email,
-         isVerified: req.user.isVerified
+         isVerified: req.user.isVerified,
+         workspaceID: req.user.workspaceID
       }
    });
 });
@@ -90,7 +92,8 @@ router.post('/signup', async (req, res) => {
       const tempUser = new TempUser({
          email,
          verificationToken: token,
-         isEmailVerified: false
+         isEmailVerified: false,
+         workspaceID: uuidv4()
       });
       await tempUser.save();
 
@@ -104,6 +107,124 @@ router.post('/signup', async (req, res) => {
    } catch (err) {
       console.error('❌ Signup error:', err);
       res.status(500).json({ msg: 'Server error from signup.' });
+   }
+});
+
+// Step 2: Verify Email - Token'ı verify et ve user'ı create-password sayfasına yönlendir
+router.get('/verify-email', async (req, res) => {
+   const { token } = req.query;
+
+   try {
+      if (!token) {
+         return res.status(400).json({ msg: 'Token is required.' });
+      }
+
+      // Verify token
+      let decoded;
+      try {
+         decoded = jwt.verify(token, process.env.JWT_SECRET);
+      } catch (err) {
+         return res.status(400).json({ msg: 'Invalid or expired token.' });
+      }
+
+      // Find temp user
+      const tempUser = await TempUser.findOne({
+         email: decoded.email,
+         verificationToken: token
+      });
+
+      if (!tempUser) {
+         return res.status(404).json({ msg: 'Verification link is invalid or expired.' });
+      }
+
+      // Update temp user as verified
+      tempUser.isEmailVerified = true;
+      await tempUser.save();
+
+      res.status(200).json({
+         msg: 'Email verified successfully.',
+         success: true,
+         email: decoded.email,
+         token: token
+      });
+   } catch (err) {
+      console.error('❌ Verify email error:', err);
+      res.status(500).json({ msg: 'Server error from verify email.' });
+   }
+});
+
+// Step 3: Create Password - Şifre oluştur ve geçici user'ı asıl user'a dönüştür
+router.post('/create-password', async (req, res) => {
+   const { token, password } = req.body;
+
+   try {
+      if (!token || !password) {
+         return res.status(400).json({ msg: 'Token and password are required.' });
+      }
+
+      // Password validation
+      if (password.length < 8) {
+         return res.status(400).json({ msg: 'Password must be at least 8 characters long.' });
+      }
+
+      // Verify token
+      let decoded;
+      try {
+         decoded = jwt.verify(token, process.env.JWT_SECRET);
+      } catch (err) {
+         return res.status(400).json({ msg: 'Invalid or expired token.' });
+      }
+
+      // Find temp user and check if email is verified
+      const tempUser = await TempUser.findOne({
+         email: decoded.email,
+         verificationToken: token,
+         isEmailVerified: true
+      });
+
+      if (!tempUser) {
+         return res.status(404).json({ msg: 'Invalid verification or email not verified.' });
+      }
+
+      // Check if user already exists (double check)
+      const existingUser = await User.findOne({ email: decoded.email });
+      if (existingUser) {
+         await TempUser.deleteOne({ email: decoded.email });
+         return res.status(400).json({ msg: 'This email is already registered.' });
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Create new user
+      const newUser = new User({
+         email: decoded.email,
+         password: hashedPassword,
+         isVerified: true,
+         workspaceID: uuidv4()
+      });
+      await newUser.save();
+
+      // Delete temp user
+      await TempUser.deleteOne({ email: decoded.email });
+
+      // Create JWT for login
+      const loginToken = jwt.sign(
+         { userId: newUser._id, email: newUser.email, workspaceID: newUser.workspaceID },
+         process.env.JWT_SECRET,
+         { expiresIn: '7d' }
+      );
+
+      // Set auth cookie as HttpOnly so it cannot be read via document.cookie
+      res.cookie('access_token', loginToken, tokenCookieOptions);
+
+      res.status(201).json({
+         msg: 'Account created successfully.',
+         success: true,
+      });
+   } catch (err) {
+      console.error('❌ Create password error:', err);
+      res.status(500).json({ msg: 'Server error from create password.' });
    }
 });
 
@@ -140,7 +261,7 @@ router.post('/signin', async (req, res) => {
       }
 
       const loginToken = jwt.sign(
-         { userId: user._id, email: user.email },
+         { userId: user._id, email: user.email, workspaceID: user.workspaceID },
          process.env.JWT_SECRET,
          { expiresIn: '7d' }
       );
@@ -275,123 +396,6 @@ router.post('/reset-password/create-password', async (req, res) => {
    } catch (err) {
       console.error('❌ Reset password create error:', err);
       res.status(500).json({ msg: 'Server error from reset password create.' });
-   }
-});
-
-// Step 2: Verify Email - Token'ı verify et ve user'ı create-password sayfasına yönlendir
-router.get('/verify-email', async (req, res) => {
-   const { token } = req.query;
-
-   try {
-      if (!token) {
-         return res.status(400).json({ msg: 'Token is required.' });
-      }
-
-      // Verify token
-      let decoded;
-      try {
-         decoded = jwt.verify(token, process.env.JWT_SECRET);
-      } catch (err) {
-         return res.status(400).json({ msg: 'Invalid or expired token.' });
-      }
-
-      // Find temp user
-      const tempUser = await TempUser.findOne({
-         email: decoded.email,
-         verificationToken: token
-      });
-
-      if (!tempUser) {
-         return res.status(404).json({ msg: 'Verification link is invalid or expired.' });
-      }
-
-      // Update temp user as verified
-      tempUser.isEmailVerified = true;
-      await tempUser.save();
-
-      res.status(200).json({
-         msg: 'Email verified successfully.',
-         success: true,
-         email: decoded.email,
-         token: token
-      });
-   } catch (err) {
-      console.error('❌ Verify email error:', err);
-      res.status(500).json({ msg: 'Server error from verify email.' });
-   }
-});
-
-// Step 3: Create Password - Şifre oluştur ve geçici user'ı asıl user'a dönüştür
-router.post('/create-password', async (req, res) => {
-   const { token, password } = req.body;
-
-   try {
-      if (!token || !password) {
-         return res.status(400).json({ msg: 'Token and password are required.' });
-      }
-
-      // Password validation
-      if (password.length < 8) {
-         return res.status(400).json({ msg: 'Password must be at least 8 characters long.' });
-      }
-
-      // Verify token
-      let decoded;
-      try {
-         decoded = jwt.verify(token, process.env.JWT_SECRET);
-      } catch (err) {
-         return res.status(400).json({ msg: 'Invalid or expired token.' });
-      }
-
-      // Find temp user and check if email is verified
-      const tempUser = await TempUser.findOne({
-         email: decoded.email,
-         verificationToken: token,
-         isEmailVerified: true
-      });
-
-      if (!tempUser) {
-         return res.status(404).json({ msg: 'Invalid verification or email not verified.' });
-      }
-
-      // Check if user already exists (double check)
-      const existingUser = await User.findOne({ email: decoded.email });
-      if (existingUser) {
-         await TempUser.deleteOne({ email: decoded.email });
-         return res.status(400).json({ msg: 'This email is already registered.' });
-      }
-
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      // Create new user
-      const newUser = new User({
-         email: decoded.email,
-         password: hashedPassword,
-         isVerified: true
-      });
-      await newUser.save();
-
-      // Delete temp user
-      await TempUser.deleteOne({ email: decoded.email });
-
-      // Create JWT for login
-      const loginToken = jwt.sign(
-         { userId: newUser._id, email: newUser.email },
-         process.env.JWT_SECRET,
-         { expiresIn: '7d' }
-      );
-
-      // Set auth cookie as HttpOnly so it cannot be read via document.cookie
-      res.cookie('access_token', loginToken, tokenCookieOptions);
-
-      res.status(201).json({
-         msg: 'Account created successfully.',
-         success: true,
-      });
-   } catch (err) {
-      console.error('❌ Create password error:', err);
-      res.status(500).json({ msg: 'Server error from create password.' });
    }
 });
 

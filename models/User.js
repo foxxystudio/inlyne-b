@@ -14,6 +14,11 @@ const userSchema = new mongoose.Schema({
       type: Boolean,
       default: false
    },
+   workspaceID: {
+      type: String,
+      required: true,
+      unique: true
+   }
 });
 
 module.exports = mongoose.model('User', userSchema);
