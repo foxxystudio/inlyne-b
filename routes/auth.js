@@ -40,52 +40,61 @@ const clearAuthCookie = (res) => {
 
 // JWT auth middleware for protected routes
 const authenticateToken = async (req, res, next) => {
-   // Öncelik httpOnly cookie; yoksa Authorization: Bearer <token> fallback
    const bearer = req.headers.authorization?.startsWith('Bearer ')
       ? req.headers.authorization.slice(7)
       : null;
+
    const token = req.cookies?.access_token || bearer;
 
-   // Token yoksa sessizce success:false dön (401 vermeden)
    if (!token) {
       clearAuthCookie(res);
-      return res.status(304).json({ msg: 'No token found. Please login.', success: false, user: null });
+      return res.status(401).json({
+         success: false,
+         code: 'NO_TOKEN',
+         user: null
+      });
    }
 
    try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.userId).select('-password');
 
+      const user = await User.findById(decoded.userId).select('-password');
       if (!user) {
-         return res.status(304).json({ msg: 'User not found.', success: false, user: null });
+         clearAuthCookie(res);
+         return res.status(401).json({
+            success: false,
+            code: 'USER_NOT_FOUND',
+            user: null
+         });
       }
 
       req.user = user;
       next();
    } catch (err) {
-      if (err.name === 'TokenExpiredError') {
-         clearAuthCookie(res);
-         return res.status(304).json({ msg: 'Token expired. Please login again.', success: false, user: null });
-      }
       clearAuthCookie(res);
-      return res.status(304).json({ msg: 'Invalid token.', success: false, user: null });
+      return res.status(401).json({
+         success: false,
+         code: err.name === 'TokenExpiredError'
+            ? 'TOKEN_EXPIRED'
+            : 'INVALID_TOKEN',
+         user: null
+      });
    }
 };
 
 // Get current user from JWT (requires cookie token)
-router.get('/me', authenticateToken, async (req, res) => {
+router.get('/me', authenticateToken, (req, res) => {
    res.set({
-      'Cache-Control': 'no-store, no-cache, must-revalidate, private',
-      'Pragma': 'no-cache',
-      'Expires': '0',
+      'Cache-Control': 'no-store',
    });
 
    res.status(200).json({
+      success: true,
       user: {
          id: req.user._id,
          email: req.user.email,
-         isVerified: req.user.isVerified
-      }
+         isVerified: req.user.isVerified,
+      },
    });
 });
 
