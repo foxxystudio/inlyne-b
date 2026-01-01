@@ -17,84 +17,47 @@ const tokenCookieOptions = {
    domain: isProduction ? process.env.COOKIE_DOMAIN : undefined,
 };
 
-// Clear auth cookie with both clearCookie and explicit expired set-cookie
-const clearAuthCookie = (res) => {
-   // Primary clear with configured domain
-   res.clearCookie('access_token', { ...tokenCookieOptions });
-   res.cookie('access_token', '', {
-      ...tokenCookieOptions,
-      maxAge: 0,
-      expires: new Date(0),
-   });
-
-   // Host-only fallback (no domain) to cover mismatch between COOKIE_DOMAIN and current host
-   const { domain, ...hostOnlyOpts } = tokenCookieOptions;
-   res.clearCookie('access_token', { ...hostOnlyOpts, domain: undefined });
-   res.cookie('access_token', '', {
-      ...hostOnlyOpts,
-      domain: undefined,
-      maxAge: 0,
-      expires: new Date(0),
-   });
-};
-
 // JWT auth middleware for protected routes
 const authenticateToken = async (req, res, next) => {
-   const bearer = req.headers.authorization?.startsWith('Bearer ')
-      ? req.headers.authorization.slice(7)
-      : null;
+   const token = req.cookies?.access_token;
 
-   const token = req.cookies?.access_token || bearer;
-
+   // Token yoksa sessizce success:false dön (401 vermeden)
    if (!token) {
-      clearAuthCookie(res);
-      return res.status(401).json({
-         success: false,
-         code: 'NO_TOKEN',
-         user: null
-      });
+      return res.status(200).json({ msg: 'No token found. Please login.', success: false, user: null });
    }
 
    try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
       const user = await User.findById(decoded.userId).select('-password');
+
       if (!user) {
-         clearAuthCookie(res);
-         return res.status(401).json({
-            success: false,
-            code: 'USER_NOT_FOUND',
-            user: null
-         });
+         return res.status(200).json({ msg: 'User not found.', success: false, user: null });
       }
 
       req.user = user;
       next();
    } catch (err) {
-      clearAuthCookie(res);
-      return res.status(401).json({
-         success: false,
-         code: err.name === 'TokenExpiredError'
-            ? 'TOKEN_EXPIRED'
-            : 'INVALID_TOKEN',
-         user: null
-      });
+      if (err.name === 'TokenExpiredError') {
+         return res.status(200).json({ msg: 'Token expired. Please login again.', success: false, user: null });
+      }
+      return res.status(200).json({ msg: 'Invalid token.', success: false, user: null });
    }
 };
 
 // Get current user from JWT (requires cookie token)
-router.get('/me', authenticateToken, (req, res) => {
+router.get('/me', authenticateToken, async (req, res) => {
    res.set({
-      'Cache-Control': 'no-store',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+      'Pragma': 'no-cache',
+      'Expires': '0'
    });
 
    res.status(200).json({
-      success: true,
       user: {
          id: req.user._id,
          email: req.user.email,
-         isVerified: req.user.isVerified,
-      },
+         isVerified: req.user.isVerified
+      }
    });
 });
 
@@ -434,7 +397,7 @@ router.post('/create-password', async (req, res) => {
 
 // Logout by clearing auth cookie
 router.post('/logout', (req, res) => {
-   clearAuthCookie(res);
+   res.clearCookie('access_token', { ...tokenCookieOptions });
    res.status(200).json({ msg: 'Logged out successfully.' });
 });
 
