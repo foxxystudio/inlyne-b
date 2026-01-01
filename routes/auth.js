@@ -23,7 +23,7 @@ const authenticateToken = async (req, res, next) => {
 
    // Token yoksa sessizce success:false dön (401 vermeden)
    if (!token) {
-      return res.status(200).json({ msg: 'No token found. Please login.', success: false, user: null });
+      return res.status(304).json({ msg: 'No token found. Please login.', success: false, user: null });
    }
 
    try {
@@ -49,7 +49,7 @@ router.get('/me', authenticateToken, async (req, res) => {
    res.set({
       'Cache-Control': 'no-store, no-cache, must-revalidate, private',
       'Pragma': 'no-cache',
-      'Expires': '0'
+      'Expires': '0',
    });
 
    res.status(200).json({
