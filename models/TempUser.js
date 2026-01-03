@@ -14,6 +14,11 @@ const tempUserSchema = new mongoose.Schema({
       type: Boolean,
       default: false
    },
+   workspaceID: {
+      type: String,
+      unique: true,
+      required: true
+   },
    createdAt: {
       type: Date,
       default: Date.now

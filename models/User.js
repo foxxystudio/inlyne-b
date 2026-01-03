@@ -16,8 +16,9 @@ const userSchema = new mongoose.Schema({
    },
    workspaceID: {
       type: String,
-      required: true,
-      unique: true
+      unique: true,
+      index: true,
+      required: true
    }
 });
 

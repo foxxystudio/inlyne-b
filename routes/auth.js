@@ -1,10 +1,10 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { v4: uuidv4 } = require('uuid');
 const User = require('../models/User');
 const TempUser = require('../models/TempUser');
 const { sendSignUpVerificationLink, sendResetPasswordLink } = require('../utils/sendMail');
+const crypto = require('crypto');
 
 const router = express.Router();
 
@@ -17,6 +17,20 @@ const tokenCookieOptions = {
    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
    domain: isProduction ? process.env.COOKIE_DOMAIN : undefined,
 };
+
+// Workspace ID generate
+const generateWorkspaceId = async () => {
+   let id;
+   let exists = true;
+ 
+   while (exists) {
+     id = crypto.randomBytes(4).toString('hex'); // 8 char: [0-9a-f]
+     exists = await User.exists({ workspaceID: id }) 
+           || await TempUser.exists({ workspaceID: id });
+   }
+ 
+   return id;
+ };
 
 // JWT auth middleware for protected routes
 const authenticateToken = async (req, res, next) => {
@@ -88,12 +102,14 @@ router.post('/signup', async (req, res) => {
       // Create verification token
       const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
+      const workspaceID = await generateWorkspaceId();
+
       // Save to TempUser collection
       const tempUser = new TempUser({
          email,
          verificationToken: token,
          isEmailVerified: false,
-         workspaceID: uuidv4()
+         workspaceID
       });
       await tempUser.save();
 
@@ -201,7 +217,7 @@ router.post('/create-password', async (req, res) => {
          email: decoded.email,
          password: hashedPassword,
          isVerified: true,
-         workspaceID: uuidv4()
+         workspaceID: tempUser.workspaceID
       });
       await newUser.save();
 
@@ -221,6 +237,7 @@ router.post('/create-password', async (req, res) => {
       res.status(201).json({
          msg: 'Account created successfully.',
          success: true,
+         workspaceID: tempUser.workspaceID
       });
    } catch (err) {
       console.error('❌ Create password error:', err);
@@ -271,6 +288,10 @@ router.post('/signin', async (req, res) => {
       res.status(200).json({
          success: true,
          msg: 'Logged in successfully.',
+         user: {
+            email: user.email,
+            workspaceID: user.workspaceID,
+         }
       });
    } catch (err) {
       console.error('❌ Signin error:', err);
