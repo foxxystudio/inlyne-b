@@ -22,15 +22,15 @@ const tokenCookieOptions = {
 const generateWorkspaceId = async () => {
    let id;
    let exists = true;
- 
+
    while (exists) {
-     id = crypto.randomBytes(4).toString('hex'); // 8 char: [0-9a-f]
-     exists = await User.exists({ workspaceID: id }) 
-           || await TempUser.exists({ workspaceID: id });
+      id = crypto.randomBytes(4).toString('hex'); // 8 char: [0-9a-f]
+      exists = await User.exists({ workspaceID: id })
+         || await TempUser.exists({ workspaceID: id });
    }
- 
+
    return id;
- };
+};
 
 // JWT auth middleware for protected routes
 const authenticateToken = async (req, res, next) => {
@@ -46,16 +46,17 @@ const authenticateToken = async (req, res, next) => {
       const user = await User.findById(decoded.userId).select('-password');
 
       if (!user) {
-         return res.status(200).json({ msg: 'User not found.', success: false, user: null });
+         return res.status(401).json({ msg: 'User not found.', success: false, userNotFound: true, user: null });
       }
 
       req.user = user;
       next();
    } catch (err) {
+      console.error('❌ Authentication error:', err);
       if (err.name === 'TokenExpiredError') {
-         return res.status(200).json({ msg: 'Token expired. Please login again.', success: false, user: null });
+         return res.status(401).json({ msg: 'Token expired. Please login again.', success: false, tokenExpired: true, user: null });
       }
-      return res.status(200).json({ msg: 'Invalid token.', success: false, user: null });
+      return res.status(401).json({ msg: 'Invalid token.', success: false, tokenInvalid: true, user: null });
    }
 };
 
@@ -72,7 +73,10 @@ router.get('/me', authenticateToken, async (req, res) => {
          id: req.user._id,
          email: req.user.email,
          isVerified: req.user.isVerified,
-         workspaceID: req.user.workspaceID
+         workspaceID: req.user.workspaceID,
+         role: req.user.role,
+         createdAt: req.user.createdAt,
+         updatedAt: req.user.updatedAt
       }
    });
 });
@@ -217,7 +221,8 @@ router.post('/create-password', async (req, res) => {
          email: decoded.email,
          password: hashedPassword,
          isVerified: true,
-         workspaceID: tempUser.workspaceID
+         workspaceID: tempUser.workspaceID,
+         role: 'user'
       });
       await newUser.save();
 
@@ -226,7 +231,12 @@ router.post('/create-password', async (req, res) => {
 
       // Create JWT for login
       const loginToken = jwt.sign(
-         { userId: newUser._id, email: newUser.email, workspaceID: newUser.workspaceID },
+         {
+            userId: newUser._id,
+            email: newUser.email,
+            workspaceID: newUser.workspaceID,
+            role: newUser.role
+         },
          process.env.JWT_SECRET,
          { expiresIn: '7d' }
       );
@@ -278,7 +288,12 @@ router.post('/signin', async (req, res) => {
       }
 
       const loginToken = jwt.sign(
-         { userId: user._id, email: user.email, workspaceID: user.workspaceID },
+         {
+            userId: user._id,
+            email: user.email,
+            workspaceID: user.workspaceID,
+            role: user.role
+         },
          process.env.JWT_SECRET,
          { expiresIn: '7d' }
       );
