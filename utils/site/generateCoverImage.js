@@ -22,8 +22,11 @@ const generateCoverImage = async (url, siteID) => {
 
       const filePath = path.join(uploadDir, `${siteID}.webp`);
 
+      // Allow overriding executable in prod where bundled Chromium is absent
+      const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROMIUM_PATH;
       const browser = await puppeteer.launch({
-         headless: 'new',
+         headless: true,
+         executablePath: executablePath || undefined,
          args: ['--no-sandbox', '--disable-setuid-sandbox']
       });
 

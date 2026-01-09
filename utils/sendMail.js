@@ -77,8 +77,30 @@ const sendResetPasswordLink = async (email, token) => {
    });
 };
 
+// Send Site Invite Link
+const sendSiteInviteLink = async (email, token) => {
+   const inviteLink = `${CLIENT_URL}/invite/${token}`;
+   await sendMail({
+      to: email,
+      subject: 'You have been invited to a site - Inlyne',
+      html: `
+         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #333;">You have been invited to a site</h2>
+            <p>You have been invited to a site. Click the button below to accept the invite:</p>
+            <div style="margin: 30px 0;">
+               <a href="${inviteLink}" style="background-color: #000; color: #fff; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">Accept invite</a>
+            </div>
+            <p style="color: #666; font-size: 14px;">Or copy and paste this link into your browser:</p>
+            <p style="color: #666; font-size: 12px; word-break: break-all;">${inviteLink}</p>
+            <p style="color: #999; font-size: 12px; margin-top: 30px;">This link will expire in 1 hour.</p>
+         </div>
+      `,
+   });
+};
+
 module.exports = {
    sendMail,
    sendSignUpVerificationLink,
-   sendResetPasswordLink
+   sendResetPasswordLink,
+   sendSiteInviteLink
 };

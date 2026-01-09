@@ -32,8 +32,14 @@ router.post('/create', async (req, res) => {
 
       const siteID = await generateSiteId();
 
-      // 🔥 SCREENSHOT AL
-      const coverImage = await generateCoverImage(url, siteID);
+      // 🔥 SCREENSHOT AL (tolerate failure in prod)
+      let coverImage = null;
+      try {
+         coverImage = await generateCoverImage(url, siteID);
+      } catch (err) {
+         console.error('Cover image generation failed:', err?.message || err);
+         coverImage = null;
+      }
 
       const site = await Site.create({
          name,
