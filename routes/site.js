@@ -32,13 +32,17 @@ router.post('/create', async (req, res) => {
 
       const siteID = await generateSiteId();
 
-      // 🔥 SCREENSHOT AL (tolerate failure in prod)
+      // 🔥 SCREENSHOT AL (skip if disabled; never block creation)
+      const screenshotsDisabled = process.env.PUPPETEER_DISABLED === 'true';
+
       let coverImage = null;
-      try {
-         coverImage = await generateCoverImage(url, siteID);
-      } catch (err) {
-         console.error('Cover image generation failed:', err?.message || err);
-         coverImage = null;
+      if (!screenshotsDisabled) {
+         try {
+            coverImage = await generateCoverImage(url, siteID);
+         } catch (err) {
+            console.error('Cover image generation failed:', err?.message || err);
+            coverImage = null;
+         }
       }
 
       const site = await Site.create({
