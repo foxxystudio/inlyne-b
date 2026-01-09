@@ -3,6 +3,7 @@ const Site = require('../models/Sites');
 const SiteInvite = require('../models/SiteInvite');
 const sendMail = require('../utils/sendMail'); // senin mail helper
 const crypto = require('crypto');
+const { sendSiteInviteLink } = require('../utils/sendMail');
 
 const router = express.Router();
 
@@ -41,16 +42,7 @@ router.post('/:siteID/invite', async (req, res) => {
          expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24) // 24 saat
       });
 
-      const inviteLink = `${process.env.FRONTEND_URL}/invite/${token}`;
-
-      await sendMail({
-         to: email,
-         subject: `You've been invited to ${site.name}`,
-         html: `
-           <p>You have been invited to <b>${site.name}</b></p>
-           <a href="${inviteLink}">Accept invite</a>
-         `
-      });
+      await sendSiteInviteLink(email, token);
 
       res.json({ success: true });
 

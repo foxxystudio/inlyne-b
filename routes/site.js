@@ -36,14 +36,14 @@ router.post('/create', async (req, res) => {
       const screenshotsDisabled = process.env.PUPPETEER_DISABLED === 'true';
 
       let coverImage = null;
-      if (!screenshotsDisabled) {
+      // if (!screenshotsDisabled) {
          try {
             coverImage = await generateCoverImage(url, siteID);
          } catch (err) {
             console.error('Cover image generation failed:', err?.message || err);
             coverImage = null;
          }
-      }
+      // }
 
       const site = await Site.create({
          name,
