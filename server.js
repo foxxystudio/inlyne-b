@@ -1,10 +1,12 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
-const authRoutes = require('./routes/auth');
 const cors = require('cors');
 const connectDB = require('./connection/db');
 const cookieParser = require('cookie-parser');
+const authRoutes = require('./routes/auth');
+const siteRoutes = require('./routes/site');
+const path = require('path');
 
 dotenv.config();
 
@@ -31,7 +33,9 @@ app.use(cors({
 }));
 
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/auth', authRoutes);
+app.use('/api/site', siteRoutes);
 
 connectDB();
 

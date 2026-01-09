@@ -235,7 +235,6 @@ router.post('/create-password', async (req, res) => {
             userId: newUser._id,
             email: newUser.email,
             workspaceID: newUser.workspaceID,
-            role: newUser.role
          },
          process.env.JWT_SECRET,
          { expiresIn: '7d' }
@@ -292,7 +291,6 @@ router.post('/signin', async (req, res) => {
             userId: user._id,
             email: user.email,
             workspaceID: user.workspaceID,
-            role: user.role
          },
          process.env.JWT_SECRET,
          { expiresIn: '7d' }
