@@ -11,7 +11,8 @@ const siteSchema = new mongoose.Schema({
    },
    coverImage: {
       type: String,
-      required: true
+      required: false,
+      default: null
    },
    siteID: {
       type: String,

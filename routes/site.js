@@ -31,6 +31,14 @@ router.post('/create', async (req, res) => {
          });
       }
 
+      // URL https:// ile başlamalı
+      if (!url.startsWith('https://')) {
+         return res.status(400).json({
+            success: false,
+            msg: 'URL must start with https://',
+         });
+      }
+
       const siteID = await generateSiteId();
 
       // 🔥 SCREENSHOT AL (skip if disabled; never block creation)
@@ -41,7 +49,6 @@ router.post('/create', async (req, res) => {
          try {
             coverImage = await generateCoverImage(url, siteID);
          } catch (err) {
-            console.error('Cover image generation failed:', err?.message || err);
             coverImage = null;
          }
       }
