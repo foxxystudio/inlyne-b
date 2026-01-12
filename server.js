@@ -12,7 +12,7 @@ dotenv.config();
 
 const app = express();
 
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,https://staging.inlyne.ai,https://inlyne.ai')
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,https://app.inlyne.ai,https://inlyne.ai')
    .split(',')
    .map(o => o.trim().replace(/\/$/, '')) // trim and drop trailing slash
    .filter(Boolean);

@@ -1,5 +1,6 @@
 const express = require('express');
 const Site = require('../models/Site');
+const User = require('../models/User');
 const crypto = require('crypto');
 const generateCoverImage = require('../utils/site/generateCoverImage');
 
@@ -65,6 +66,54 @@ router.post('/create', async (req, res) => {
          success: false,
          msg: 'Server error from create site',
       });
+   }
+});
+
+// Add an allowed user by email for a site
+router.post('/invite', async (req, res) => {
+   const { userEmail, siteID, userId } = req.body;
+   const requesterId = req.user?.id || userId;
+
+   if (!requesterId) {
+      return res.status(401).json({ msg: 'Unauthorized' });
+   }
+
+   if (!userEmail || !siteID) {
+      return res.status(400).json({ msg: 'userEmail and siteID are required' });
+   }
+
+   try {
+      const site = await Site.findOne({
+         siteID,
+         allowedUsers: requesterId // only current allowed users can add more
+      });
+
+      if (!site) {
+         return res.status(403).json({ msg: 'No permission for this site' });
+      }
+
+      const user = await User.findOne({ email: userEmail.toLowerCase() });
+
+      if (!user) {
+         return res.status(404).json({ msg: 'User not found' });
+      }
+
+      const alreadyAllowed = site.allowedUsers.some(
+         (id) => id.toString() === user._id.toString()
+      );
+
+      if (alreadyAllowed) {
+         return res.status(400).json({ msg: 'User already has access' });
+      }
+
+      await Site.findByIdAndUpdate(site._id, {
+         $addToSet: { allowedUsers: user._id }
+      });
+
+      res.json({ success: true });
+   } catch (err) {
+      console.error(err);
+      res.status(500).json({ msg: 'Invite error' });
    }
 });
 
