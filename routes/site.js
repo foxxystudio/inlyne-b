@@ -64,14 +64,34 @@ router.post('/create', async (req, res) => {
       res.status(201).json({
          success: true,
          msg: 'Site created successfully',
-         data: site,
       });
 
    } catch (err) {
-      console.error(err);
       res.status(500).json({
          success: false,
          msg: 'Server error from create site',
+      });
+   }
+});
+
+// Get Sites by userID
+router.get('/get/:userId', async (req, res) => {
+   try {
+      const userId = req.params.userId;
+
+      const sites = await Site.find({
+         allowedUsers: userId
+      }).sort({ createdAt: -1 });
+
+      res.json({
+         success: true,
+         data: sites
+      });
+
+   } catch (err) {
+      res.status(500).json({
+         success: false,
+         msg: 'Failed to fetch sites'
       });
    }
 });
@@ -117,32 +137,9 @@ router.post('/invite', async (req, res) => {
          $addToSet: { allowedUsers: user._id }
       });
 
-      res.json({ success: true });
+      res.json({ success: true, msg: 'User invited successfully' });
    } catch (err) {
-      console.error(err);
       res.status(500).json({ msg: 'Invite error' });
-   }
-});
-
-// Get Sites by userID
-router.get('/get/:userId', async (req, res) => {
-   try {
-      const userId = req.params.userId;
-
-      const sites = await Site.find({
-         allowedUsers: userId
-      }).sort({ createdAt: -1 });
-
-      res.json({
-         success: true,
-         data: sites
-      });
-
-   } catch (err) {
-      res.status(500).json({
-         success: false,
-         msg: 'Failed to fetch sites'
-      });
    }
 });
 
