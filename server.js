@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
@@ -7,8 +8,6 @@ const cookieParser = require('cookie-parser');
 const authRoutes = require('./routes/auth');
 const siteRoutes = require('./routes/site');
 const path = require('path');
-
-dotenv.config();
 
 const app = express();
 

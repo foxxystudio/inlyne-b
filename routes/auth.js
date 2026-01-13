@@ -8,14 +8,16 @@ const crypto = require('crypto');
 
 const router = express.Router();
 
-const isProduction = process.env.NODE_ENV === 'production';
-const tokenCookieOptions = {
-   httpOnly: true,
-   secure: isProduction, // required for SameSite=None
-   sameSite: isProduction ? 'none' : 'lax',
-   path: '/',
-   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-   domain: isProduction ? process.env.COOKIE_DOMAIN : undefined,
+const getTokenCookieOptions = () => {
+   const isProduction = process.env.NODE_ENV === 'production';
+   return {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      domain: isProduction ? process.env.COOKIE_DOMAIN : undefined,
+   };
 };
 
 // Workspace ID generate
@@ -241,7 +243,7 @@ router.post('/create-password', async (req, res) => {
       );
 
       // Set auth cookie as HttpOnly so it cannot be read via document.cookie
-      res.cookie('access_token', loginToken, tokenCookieOptions);
+      res.cookie('access_token', loginToken, getTokenCookieOptions());
 
       res.status(201).json({
          msg: 'Account created successfully.',
@@ -296,7 +298,7 @@ router.post('/signin', async (req, res) => {
          { expiresIn: '7d' }
       );
 
-      res.cookie('access_token', loginToken, tokenCookieOptions);
+      res.cookie('access_token', loginToken, getTokenCookieOptions());
 
       res.status(200).json({
          success: true,
@@ -435,7 +437,7 @@ router.post('/reset-password/create-password', async (req, res) => {
 
 // Logout by clearing auth cookie
 router.post('/logout', (req, res) => {
-   res.clearCookie('access_token', { ...tokenCookieOptions });
+   res.clearCookie('access_token', getTokenCookieOptions());
    res.status(200).json({ msg: 'Logged out successfully.' });
 });
 
