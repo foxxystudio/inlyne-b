@@ -48,6 +48,11 @@ app.get('/', (req, res) => {
    res.send('Hello World');
 });
 
+console.log(process.env.ALLOWED_ORIGINS);
+console.log(process.env.PORT);
+console.log(process.env.NODE_ENV);
+console.log('TRUST PROXY AKTIF');
+
 app.listen(PORT, () => {
    console.log(`Server started on port ${PORT}`);
 });
