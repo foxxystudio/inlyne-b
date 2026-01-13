@@ -35,6 +35,14 @@ app.use(cors({
    credentials: true,
 }));
 
+// 🔥 DEBUG MIDDLEWARE — BURAYA
+app.use((req, res, next) => {
+   console.log("NODE_ENV:", process.env.NODE_ENV);
+   console.log("SECURE?", req.secure);
+   console.log("XFP:", req.headers["x-forwarded-proto"]);
+   next();
+});
+
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/auth', authRoutes);
@@ -46,16 +54,6 @@ const PORT = process.env.PORT || 5000;
 
 app.get('/', (req, res) => {
    res.send('Hello World');
-});
-
-app.use((req, res, next) => {
-   console.log(process.env.ALLOWED_ORIGINS);
-   console.log(process.env.PORT);
-   console.log(process.env.NODE_ENV);
-   console.log("SECURE?", req.secure);
-   console.log("XFP:", req.headers["x-forwarded-proto"]);
-   console.log('TRUST PROXY AKTIF');
-   next();
 });
 
 app.listen(PORT, () => {
