@@ -48,12 +48,15 @@ app.get('/', (req, res) => {
    res.send('Hello World');
 });
 
-console.log(process.env.ALLOWED_ORIGINS);
-console.log(process.env.PORT);
-console.log(process.env.NODE_ENV);
-console.log("SECURE?", req.secure);
-console.log("XFP:", req.headers["x-forwarded-proto"]);
-console.log('TRUST PROXY AKTIF');
+app.use((req, res, next) => {
+   console.log(process.env.ALLOWED_ORIGINS);
+   console.log(process.env.PORT);
+   console.log(process.env.NODE_ENV);
+   console.log("SECURE?", req.secure);
+   console.log("XFP:", req.headers["x-forwarded-proto"]);
+   console.log('TRUST PROXY AKTIF');
+   next();
+});
 
 app.listen(PORT, () => {
    console.log(`Server started on port ${PORT}`);
