@@ -51,6 +51,8 @@ app.get('/', (req, res) => {
 console.log(process.env.ALLOWED_ORIGINS);
 console.log(process.env.PORT);
 console.log(process.env.NODE_ENV);
+console.log("SECURE?", req.secure);
+console.log("XFP:", req.headers["x-forwarded-proto"]);
 console.log('TRUST PROXY AKTIF');
 
 app.listen(PORT, () => {
