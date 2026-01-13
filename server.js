@@ -12,6 +12,9 @@ dotenv.config();
 
 const app = express();
 
+// Trust proxy - DigitalOcean/Nginx arkasında çalışıyorsak gerekli
+app.set('trust proxy', 1);
+
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,https://app.inlyne.ai,https://inlyne.ai')
    .split(',')
    .map(o => o.trim().replace(/\/$/, '')) // trim and drop trailing slash
