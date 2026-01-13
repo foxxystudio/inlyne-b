@@ -1,6 +1,7 @@
 const puppeteer = require('puppeteer');
 const path = require('path');
 const fs = require('fs');
+const uploadToSpaces = require('../uploadToSpaces');
 
 const generateCoverImage = async (url, siteID) => {
    try {
@@ -61,7 +62,33 @@ const generateCoverImage = async (url, siteID) => {
 
       await browser.close();
 
-      return `/uploads/sites/covers/${siteID}.webp`;
+      // Check if DigitalOcean Spaces is configured
+      const useSpaces = process.env.DO_SPACES_ENABLED === 'true' && 
+                        process.env.DO_SPACES_BUCKET && 
+                        process.env.DO_SPACES_KEY;
+
+      if (useSpaces) {
+         try {
+            // Upload to DigitalOcean Spaces
+            const spacesKey = `sites/covers/${siteID}.webp`;
+            const spacesUrl = await uploadToSpaces(filePath, spacesKey, 'image/webp');
+            
+            // Optionally delete local file to save disk space
+            if (process.env.DELETE_LOCAL_AFTER_UPLOAD === 'true') {
+               fs.unlinkSync(filePath);
+               console.log('🗑️ Local file deleted after upload');
+            }
+            
+            return spacesUrl; // Return Spaces URL
+         } catch (uploadError) {
+            console.error('⚠️ Spaces upload failed, falling back to local:', uploadError);
+            // Fall back to local URL if upload fails
+            return `/uploads/sites/covers/${siteID}.webp`;
+         }
+      } else {
+         console.log('📁 Saving locally (Spaces not configured)');
+         return `/uploads/sites/covers/${siteID}.webp`;
+      }
    } catch (error) {
       console.error('SCREENSHOT ERROR:', error);
       throw error; // frontend toast buradan tetikleniyor
