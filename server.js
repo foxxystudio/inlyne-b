@@ -7,6 +7,7 @@ const connectDB = require('./connection/db');
 const cookieParser = require('cookie-parser');
 const authRoutes = require('./routes/auth');
 const siteRoutes = require('./routes/site');
+const commentRoutes = require('./routes/comment');
 const path = require('path');
 
 const app = express();
@@ -46,6 +47,7 @@ app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/auth', authRoutes);
 app.use('/api/site', siteRoutes);
+app.use('/api/comment', commentRoutes);
 
 connectDB();
 
