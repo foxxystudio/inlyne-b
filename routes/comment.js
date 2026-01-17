@@ -10,6 +10,7 @@ router.post('/create', async (req, res) => {
          userId,
          workspaceId,
          userEmail,
+         userName,
          projectId,
          iframeId,
          iframeUrl,
@@ -20,7 +21,7 @@ router.post('/create', async (req, res) => {
       } = req.body;
 
       // Validation
-      if (!userId || !workspaceId || !userEmail || !projectId || !iframeId || !text) {
+      if (!userId || !workspaceId || !userEmail || !userName || !projectId || !iframeId || !text) {
          return res.status(400).json({
             success: false,
             msg: 'Missing required fields'
@@ -39,6 +40,7 @@ router.post('/create', async (req, res) => {
          userId,
          workspaceId,
          userEmail,
+         userName,
          projectId,
          iframeId,
          iframeUrl,

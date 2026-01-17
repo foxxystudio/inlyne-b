@@ -6,6 +6,10 @@ const tempUserSchema = new mongoose.Schema({
       required: true,
       unique: true
    },
+   name: {
+      type: String,
+      required: true
+   },
    verificationToken: {
       type: String,
       required: true

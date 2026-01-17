@@ -74,6 +74,7 @@ router.get('/me', authenticateToken, async (req, res) => {
       user: {
          id: req.user._id,
          email: req.user.email,
+         name: req.user.name,
          isVerified: req.user.isVerified,
          workspaceID: req.user.workspaceID,
          role: req.user.role,
@@ -85,7 +86,7 @@ router.get('/me', authenticateToken, async (req, res) => {
 
 // Step 1: Sign Up - Email exist kontrolü ve verify email gönderme
 router.post('/signup', async (req, res) => {
-   const { email } = req.body;
+   const { email, name } = req.body;
 
    try {
       // Email validation
@@ -106,13 +107,14 @@ router.post('/signup', async (req, res) => {
       }
 
       // Create verification token
-      const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: '1h' });
+      const token = jwt.sign({ email, name }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
       const workspaceID = await generateWorkspaceId();
 
       // Save to TempUser collection
       const tempUser = new TempUser({
          email,
+         name,
          verificationToken: token,
          isEmailVerified: false,
          workspaceID
@@ -152,6 +154,7 @@ router.get('/verify-email', async (req, res) => {
       // Find temp user
       const tempUser = await TempUser.findOne({
          email: decoded.email,
+         name: decoded.name,
          verificationToken: token
       });
 
@@ -200,6 +203,7 @@ router.post('/create-password', async (req, res) => {
       // Find temp user and check if email is verified
       const tempUser = await TempUser.findOne({
          email: decoded.email,
+         name: decoded.name,
          verificationToken: token,
          isEmailVerified: true
       });
@@ -211,7 +215,7 @@ router.post('/create-password', async (req, res) => {
       // Check if user already exists (double check)
       const existingUser = await User.findOne({ email: decoded.email });
       if (existingUser) {
-         await TempUser.deleteOne({ email: decoded.email });
+         await TempUser.deleteOne({ email: decoded.email, name: decoded.name });
          return res.status(400).json({ msg: 'This email is already registered.' });
       }
 
@@ -221,6 +225,7 @@ router.post('/create-password', async (req, res) => {
       // Create new user
       const newUser = new User({
          email: decoded.email,
+         name: decoded.name,
          password: hashedPassword,
          isVerified: true,
          workspaceID: tempUser.workspaceID,
@@ -229,13 +234,14 @@ router.post('/create-password', async (req, res) => {
       await newUser.save();
 
       // Delete temp user
-      await TempUser.deleteOne({ email: decoded.email });
+      await TempUser.deleteOne({ email: decoded.email, name: decoded.name });
 
       // Create JWT for login
       const loginToken = jwt.sign(
          {
             userId: newUser._id,
             email: newUser.email,
+            name: newUser.name,
             workspaceID: newUser.workspaceID,
          },
          process.env.JWT_SECRET,
@@ -292,6 +298,7 @@ router.post('/signin', async (req, res) => {
          {
             userId: user._id,
             email: user.email,
+            name: user.name,
             workspaceID: user.workspaceID,
          },
          process.env.JWT_SECRET,
@@ -305,6 +312,7 @@ router.post('/signin', async (req, res) => {
          msg: 'Logged in successfully.',
          user: {
             email: user.email,
+            name: user.name,
             workspaceID: user.workspaceID,
          }
       });
@@ -337,7 +345,7 @@ router.post('/reset-password/request', async (req, res) => {
       }
 
       const resetToken = jwt.sign(
-         { userId: user._id, email: user.email, type: 'reset' },
+         { userId: user._id, email: user.email, name: user.name, type: 'reset' },
          process.env.JWT_SECRET,
          { expiresIn: '15m' }
       );
